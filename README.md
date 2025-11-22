@@ -1,6 +1,7 @@
 Nama: Moh. Jevon Attaillah
-Institusi: Politeknik Negeri Banyuwangi
-Praktikum PPM – Pertemuan 14
+Kelas : Trpl 2D
+NIM : 362458302035
+Praktikum catatan geo
 
 
 # Geo-Catatan – Aplikasi Geolokasi Flutter
