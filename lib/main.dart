@@ -17,6 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: const MapScreen(),
     );
   }
@@ -32,46 +33,40 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   List<CatatanModel> _savedNotes = [];
   final MapController _mapController = MapController();
-
-  final List<String> _locationTypes = ['Rumah', 'Toko', 'Kantor', 'Taman'];
-  String _selectedType = 'Rumah';
+  
+  final List<String> _jenisLokasi = ['Rumah', 'Toko', 'Kantor', 'Sekolah'];
+  String _pilihanJenis = 'Rumah';
 
   @override
   void initState() {
     super.initState();
-    _loadNotes();
+    _loadData();
   }
 
-  Future<void> _saveNotes() async {
+  // Tugas Mandiri 3 : Simpan dan muat data menggunakan SharedPreferences
+  void _saveData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String encodedData = jsonEncode(
-      _savedNotes.map((note) => note.toJson()).toList()
-    );
-    await prefs.setString('saved_notes', encodedData);
+    final String data = jsonEncode(_savedNotes.map((e) => e.toJson()).toList());
+    await prefs.setString('notes_data', data);
   }
 
-  Future<void> _loadNotes() async {
+  void _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? encodedData = prefs.getString('saved_notes');
-
-    if (encodedData != null) {
-      final List<dynamic> decodedData = jsonDecode(encodedData);
+    final String? data = prefs.getString('notes_data');
+    if (data != null) {
+      final List decoded = jsonDecode(data);
       setState(() {
-        _savedNotes = decodedData
-            .map((item) => CatatanModel.fromJson(item))
-            .toList();
+        _savedNotes = decoded.map((e) => CatatanModel.fromJson(e)).toList();
       });
     }
   }
 
+  // Fitur Utama
   Future<void> _findMyLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
@@ -84,116 +79,83 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _handleLongPress(TapPosition tapPosition, latlong.LatLng point) async {
+  void _handleLongPress(TapPosition _, latlong.LatLng point) async {
     List<Placemark> placemarks = await placemarkFromCoordinates(
       point.latitude, 
       point.longitude
     );
-    
     String address = placemarks.first.street ?? "Alamat tidak dikenal";
-    TextEditingController noteController = TextEditingController();
-
-    setState(() {
-      _selectedType = 'Rumah';
-    });
+    
+    TextEditingController noteInput = TextEditingController();
+    _pilihanJenis = 'Rumah'; 
 
     if (!mounted) return;
-
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Tambah Lokasi"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text("Alamat: $address", style: const TextStyle(fontSize: 12)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(labelText: "Catatan"),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButton<String>(
-                    value: _selectedType,
-                    isExpanded: true,
-                    items: _locationTypes.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setDialogState(() {
-                        _selectedType = newValue!;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Batal"),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Tambah Lokasi"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("Alamat: $address", style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteInput,
+                  decoration: const InputDecoration(hintText: "Tulis catatan..."),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _savedNotes.add(CatatanModel(
-                        position: point,
-                        note: noteController.text.isEmpty ? "Tanpa Catatan" : noteController.text,
-                        address: address,
-                        type: _selectedType,
-                      ));
-                    });
-                    _saveNotes();
-                    Navigator.pop(context);
+                const SizedBox(height: 10),
+                DropdownButton<String>(
+                  value: _pilihanJenis,
+                  isExpanded: true,
+                  items: _jenisLokasi.map((String value) {
+                    return DropdownMenuItem(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: (val) {
+                    setDialogState(() => _pilihanJenis = val!);
                   },
-                  child: const Text("Simpan"),
                 ),
               ],
-            );
-          },
-        );
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _savedNotes.add(CatatanModel(
+                      position: point,
+                      note: noteInput.text.isEmpty ? "Tanpa Catatan" : noteInput.text,
+                      address: address,
+                      type: _pilihanJenis,
+                    ));
+                  });
+                  _saveData();
+                  Navigator.pop(ctx);
+                },
+                child: const Text("Simpan"),
+              )
+            ],
+          );
+        });
       },
     );
   }
 
-  IconData _getIconByType(String type) {
-    switch (type) {
-      case 'Toko': return Icons.store;
-      case 'Kantor': return Icons.work;
-      case 'Taman': return Icons.park;
-      case 'Rumah': default: return Icons.home;
-    }
+  // Tugas Mandiri 2 : Hapus data
+  void _hapusData(CatatanModel note) {
+    setState(() {
+      _savedNotes.remove(note);
+    });
+    _saveData();
   }
 
-  void _deleteNote(CatatanModel note) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Hapus Lokasi?"),
-        content: Text("Yakin ingin menghapus ${note.note}?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _savedNotes.remove(note);
-              });
-              _saveNotes();
-              Navigator.pop(ctx);
-            },
-            child: const Text("Hapus", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+  // Tugas Mandiri 1 : kustom ikon berdasarkan jenis lokasi
+  IconData _getIcon(String type) {
+    if (type == 'Toko') return Icons.store;
+    if (type == 'Kantor') return Icons.work;
+    if (type == 'Sekolah') return Icons.school;
+    return Icons.home;
   }
 
   @override
@@ -217,12 +179,26 @@ class _MapScreenState extends State<MapScreen> {
               width: 40,
               height: 40,
               child: GestureDetector(
-                onTap: () => _deleteNote(n),
-                child: Icon(
-                  _getIconByType(n.type),
-                  color: Colors.red,
-                  size: 40,
-                ),
+                onTap: () {
+                  showDialog(
+                    context: context, 
+                    builder: (ctx) => AlertDialog(
+                      title: const Text("Hapus?"),
+                      content: Text("Hapus ${n.note}?"),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+                        TextButton(
+                          onPressed: () {
+                            _hapusData(n);
+                            Navigator.pop(ctx);
+                          }, 
+                          child: const Text("Hapus", style: TextStyle(color: Colors.red))
+                        ),
+                      ],
+                    )
+                  );
+                },
+                child: Icon(_getIcon(n.type), color: Colors.red, size: 40),
               ),
             )).toList(),
           ),

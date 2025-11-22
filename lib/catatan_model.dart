@@ -13,21 +13,21 @@ class CatatanModel {
     required this.type,
   });
 
-  // Mengubah data menjadi format JSON (Map) untuk disimpan
+  // Format data agar bisa disimpan
   Map<String, dynamic> toJson() {
     return {
-      'latitude': position.latitude,
-      'longitude': position.longitude,
+      'lat': position.latitude,
+      'long': position.longitude,
       'note': note,
       'address': address,
       'type': type,
     };
   }
 
-  // Mengubah data dari JSON kembali menjadi CatatanModel
+  // Mengembalikan data yang disimpan
   factory CatatanModel.fromJson(Map<String, dynamic> json) {
     return CatatanModel(
-      position: LatLng(json['latitude'], json['longitude']),
+      position: LatLng(json['lat'], json['long']),
       note: json['note'],
       address: json['address'],
       type: json['type'],
